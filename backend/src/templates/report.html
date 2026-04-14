@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', sans-serif; color: #1e293b; background: #fff; }
+  .header { background: linear-gradient(135deg, {{client.primaryColor}}, {{client.secondaryColor}}); color: white; padding: 40px 50px; }
+  .header h1 { font-size: 28px; font-weight: 700; }
+  .header p { opacity: 0.85; margin-top: 6px; font-size: 14px; }
+  .period-badge { background: rgba(255,255,255,0.2); border-radius: 20px; padding: 6px 16px; display: inline-block; margin-top: 12px; font-size: 13px; }
+  .section { padding: 32px 50px; }
+  .section-title { font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 20px; border-left: 4px solid {{client.primaryColor}}; padding-left: 12px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .kpi-card { background: #f8fafc; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; }
+  .kpi-label { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .kpi-value { font-size: 24px; font-weight: 700; color: #0f172a; }
+  .kpi-sub { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+  .chart-container { background: #f8fafc; border-radius: 12px; padding: 20px; border: 1px solid #e2e8f0; min-height: 200px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: {{client.primaryColor}}; color: white; padding: 10px 14px; text-align: left; font-weight: 600; }
+  tr:nth-child(even) { background: #f8fafc; }
+  td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+  .platform-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .platform-FACEBOOK { background: #e0f2fe; color: #0284c7; }
+  .platform-INSTAGRAM { background: #fce7f3; color: #db2777; }
+  .footer { background: #f1f5f9; padding: 24px 50px; font-size: 12px; color: #64748b; display: flex; justify-content: space-between; margin-top: 20px; }
+  .divider { height: 1px; background: #e2e8f0; margin: 0 50px; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 160px; padding: 10px 0; }
+  .bar-wrap { display: flex; flex-direction: column; align-items: center; flex: 1; }
+  .bar { width: 100%; background: {{client.primaryColor}}; border-radius: 4px 4px 0 0; min-height: 4px; opacity: 0.85; }
+  .bar-label { font-size: 9px; color: #94a3b8; margin-top: 4px; white-space: nowrap; overflow: hidden; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>{{client.name}}</h1>
+    <p>Performance Report &mdash; {{agencyName}}</p>
+    <div class="period-badge">&#128197; {{period.start}} &mdash; {{period.end}}</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Key Performance Indicators</div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Spend</div>
+        <div class="kpi-value">$&#123;&#123;kpis.totalSpend&#125;&#125;</div>
+        <div class="kpi-sub">Ad Budget Used</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Leads</div>
+        <div class="kpi-value">{{kpis.totalLeads}}</div>
+        <div class="kpi-sub">Generated This Period</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg. ROAS</div>
+        <div class="kpi-value">{{kpis.avgROAS}}x</div>
+        <div class="kpi-sub">Return on Ad Spend</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg. CTR</div>
+        <div class="kpi-value">{{kpis.avgCTR}}%</div>
+        <div class="kpi-sub">Click-Through Rate</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Impressions</div>
+        <div class="kpi-value">{{kpis.totalImpressions}}</div>
+        <div class="kpi-sub">Total Ad Views</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Clicks</div>
+        <div class="kpi-value">{{kpis.totalClicks}}</div>
+        <div class="kpi-sub">Link Clicks</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg. CPC</div>
+        <div class="kpi-value">${{kpis.avgCPC}}</div>
+        <div class="kpi-sub">Cost Per Click</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-title">Daily Spend Trend</div>
+    <div class="chart-container">
+      {{#if dailySpend.length}}
+      <div class="bar-chart" id="spendChart">
+        {{#each dailySpend}}
+        <div class="bar-wrap">
+          <div class="bar" style="height: {{spend}}px; max-height: 140px;"></div>
+          <div class="bar-label">{{date}}</div>
+        </div>
+        {{/each}}
+      </div>
+      {{else}}
+      <p style="color:#94a3b8; text-align:center; padding: 40px;">No spend data for this period</p>
+      {{/if}}
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-title">Campaign Performance</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Campaign</th>
+          <th>Platform</th>
+          <th>Spend</th>
+          <th>Impressions</th>
+          <th>Clicks</th>
+          <th>CTR</th>
+          <th>ROAS</th>
+          <th>Leads</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each campaigns}}
+        <tr>
+          <td>{{name}}</td>
+          <td><span class="platform-badge platform-{{platform}}">{{platform}}</span></td>
+          <td>${{spend}}</td>
+          <td>{{impressions}}</td>
+          <td>{{clicks}}</td>
+          <td>{{ctr}}%</td>
+          <td>{{roas}}x</td>
+          <td>{{leads}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer">
+    <span>Generated by {{agencyName}}</span>
+    <span>{{generatedAt}}</span>
+    <span>Confidential &mdash; For {{client.name}} Only</span>
+  </div>
+</body>
+</html>

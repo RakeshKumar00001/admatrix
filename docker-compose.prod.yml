@@ -1,0 +1,51 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: saas_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-saas_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      POSTGRES_DB: ${DB_NAME:-saas_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # ⚠️  Do NOT expose port 5432 publicly in production
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-saas_user} -d ${DB_NAME:-saas_db}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: saas_backend
+    restart: always
+    env_file:
+      - ./backend/.env
+    ports:
+      - '4000:4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend/reports:/app/reports   # persist generated PDFs
+    environment:
+      - DATABASE_URL=postgresql://${DB_USER:-saas_user}:${DB_PASSWORD}@postgres:5432/${DB_NAME:-saas_db}
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: saas_frontend
+    restart: always
+    ports:
+      - '80:80'
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

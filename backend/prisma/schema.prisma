@@ -1,0 +1,196 @@
+// This is the Prisma schema for the Marketing SaaS platform
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CLIENT
+}
+
+enum Platform {
+  FACEBOOK
+  INSTAGRAM
+  GOOGLE
+  WHATSAPP
+}
+
+enum SyncStatus {
+  IDLE
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  role         Role     @default(CLIENT)
+  isActive     Boolean  @default(true) @map("is_active")
+  client       Client?  @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  clientId     String?  @map("client_id")
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Client {
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  email          String?
+  phone          String?
+  logoUrl        String?  @map("logo_url")
+  primaryColor   String   @default("#6366f1") @map("primary_color")
+  secondaryColor String   @default("#8b5cf6") @map("secondary_color")
+  domain         String?  @unique
+  isActive       Boolean  @default(true) @map("is_active")
+  users          User[]
+  adAccounts     AdAccount[]
+  socialAccounts SocialAccount[]
+  insights       Insight[]
+  socialInsights SocialInsight[]
+  tokens         Token[]
+  reports        Report[]
+  syncLogs       SyncLog[]
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("clients")
+}
+
+model AdAccount {
+  id            String   @id @default(cuid())
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId      String   @map("client_id")
+  metaAccountId String   @map("meta_account_id")
+  name          String
+  currency      String   @default("USD")
+  timezone      String   @default("UTC")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([clientId, metaAccountId])
+  @@map("ad_accounts")
+}
+
+model SocialAccount {
+  id                    String   @id @default(cuid())
+  client                Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId              String   @map("client_id")
+  facebookPageId        String?  @map("facebook_page_id")
+  instagramBusinessId   String?  @map("instagram_business_id")
+  facebookPageName      String?  @map("facebook_page_name")
+  instagramUsername     String?  @map("instagram_username")
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  @@map("social_accounts")
+}
+
+model Token {
+  id          String   @id @default(cuid())
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId    String   @map("client_id")
+  tokenType   String   @map("token_type") // system_user, page, instagram
+  encryptedToken String @map("encrypted_token")
+  expiresAt   DateTime? @map("expires_at")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([clientId, tokenType])
+  @@map("tokens")
+}
+
+model Insight {
+  id             String   @id @default(cuid())
+  client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId       String   @map("client_id")
+  date           DateTime @db.Date
+  campaignId     String   @map("campaign_id")
+  campaignName   String   @map("campaign_name")
+  adAccountId    String   @map("ad_account_id")
+  platform       Platform @default(FACEBOOK)
+  spend          Float    @default(0)
+  impressions    Int      @default(0)
+  clicks         Int      @default(0)
+  ctr            Float    @default(0)
+  cpc            Float    @default(0)
+  cpm            Float    @default(0)
+  roas           Float    @default(0)
+  conversions    Int      @default(0)
+  leads          Int      @default(0)
+  reach          Int      @default(0)
+  frequency      Float    @default(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@unique([clientId, date, campaignId, platform])
+  @@index([clientId, date])
+  @@index([clientId, platform])
+  @@map("insights")
+}
+
+model SocialInsight {
+  id           String   @id @default(cuid())
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId     String   @map("client_id")
+  platform     Platform
+  date         DateTime @db.Date
+  followers    Int      @default(0)
+  followersNet Int      @default(0) @map("followers_net")
+  reach        Int      @default(0)
+  impressions  Int      @default(0)
+  engagement   Int      @default(0)
+  profileViews Int      @default(0) @map("profile_views")
+  posts        Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([clientId, platform, date])
+  @@index([clientId, platform])
+  @@map("social_insights")
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId    String   @map("client_id")
+  title       String
+  periodStart DateTime @map("period_start") @db.Date
+  periodEnd   DateTime @map("period_end") @db.Date
+  reportType  String   @default("monthly") @map("report_type") // weekly, monthly, custom
+  fileUrl     String?  @map("file_url")
+  fileSize    Int?     @map("file_size")
+  status      String   @default("pending") // pending, generating, ready, failed
+  emailSent   Boolean  @default(false) @map("email_sent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("reports")
+}
+
+model SyncLog {
+  id        String     @id @default(cuid())
+  client    Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId  String     @map("client_id")
+  type      String     // insights, social, all
+  status    SyncStatus @default(IDLE)
+  message   String?
+  recordsUpdated Int?  @default(0) @map("records_updated")
+  startedAt DateTime   @default(now()) @map("started_at")
+  completedAt DateTime? @map("completed_at")
+
+  @@map("sync_logs")
+}
