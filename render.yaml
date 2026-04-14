@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: saas-backend
+    env: node
+    plan: free
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: "4000"
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: CORS_ORIGINS
+        sync: false
+        # Example: https://my-frontend.vercel.app
+      - key: USE_MOCK_DATA
+        value: "false"
