@@ -2,7 +2,11 @@ import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
 // ✅ Safe env access (fixes TypeScript error)
-const API_URL = (import.meta as any).env.VITE_API_URL || '/api';
+const API_URL =
+  (typeof import.meta !== "undefined" &&
+    (import.meta as any).env &&
+    (import.meta as any).env.VITE_API_URL) ||
+  "/api";
 
 const api = axios.create({
   baseURL: API_URL,
