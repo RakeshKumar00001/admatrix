@@ -17,9 +17,7 @@
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "types": ["vite/client"],
-    "paths": { "@/*": ["./src/*"] },
-
-    👉 "types": ["vite/client"]
+    "paths": { "@/*": ["./src/*"] }
   },
   "include": ["src", "src/vite-env.d.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
