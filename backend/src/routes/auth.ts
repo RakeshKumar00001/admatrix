@@ -14,8 +14,19 @@ const loginSchema = z.object({
   password: z.string().min(6),
 });
 
-// ── Mock users for USE_MOCK_DATA=true (no DB needed) ──────────────────────────
-const MOCK_USERS: Record<string, { id: string; name: string; email: string; passwordPlain: string; role: 'ADMIN' | 'CLIENT'; clientId: string | null; client: any | null }> = {
+// ── Mock users ───────────────────────────────────────────────
+const MOCK_USERS: Record<
+  string,
+  {
+    id: string;
+    name: string;
+    email: string;
+    passwordPlain: string;
+    role: 'ADMIN' | 'CLIENT';
+    clientId: string | null;
+    client: any | null;
+  }
+> = {
   'admin@agency.com': {
     id: 'mock-admin-001',
     name: 'Agency Admin',
@@ -32,7 +43,14 @@ const MOCK_USERS: Record<string, { id: string; name: string; email: string; pass
     passwordPlain: 'client123',
     role: 'CLIENT',
     clientId: 'mock-tc-001',
-    client: { id: 'mock-tc-001', name: 'TechCorp Solutions', slug: 'techcorp', logoUrl: null, primaryColor: '#6366f1', secondaryColor: '#8b5cf6' },
+    client: {
+      id: 'mock-tc-001',
+      name: 'TechCorp Solutions',
+      slug: 'techcorp',
+      logoUrl: null,
+      primaryColor: '#6366f1',
+      secondaryColor: '#8b5cf6',
+    },
   },
   'client@fashionbrand.com': {
     id: 'mock-client-002',
@@ -41,52 +59,102 @@ const MOCK_USERS: Record<string, { id: string; name: string; email: string; pass
     passwordPlain: 'client456',
     role: 'CLIENT',
     clientId: 'mock-fb-001',
-    client: { id: 'mock-fb-001', name: 'Fashion Brand Inc', slug: 'fashionbrand', logoUrl: null, primaryColor: '#ec4899', secondaryColor: '#f43f5e' },
+    client: {
+      id: 'mock-fb-001',
+      name: 'Fashion Brand Inc',
+      slug: 'fashionbrand',
+      logoUrl: null,
+      primaryColor: '#ec4899',
+      secondaryColor: '#f43f5e',
+    },
   },
 };
 
-function generateTokens(userId: string, email: string, role: string, clientId: string | null) {
+// ✅ FIXED TOKEN GENERATOR
+function generateTokens(
+  userId: string,
+  email: string,
+  role: string,
+  clientId: string | null
+) {
   const payload = { userId, email, role, clientId };
-  const accessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '7d',
-  });
-  const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET!, {
-    expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
-  });
+
+  const accessToken = jwt.sign(
+    payload,
+    process.env.JWT_SECRET as string,
+    {
+      expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as jwt.SignOptions['expiresIn'],
+    }
+  );
+
+  const refreshToken = jwt.sign(
+    payload,
+    process.env.JWT_REFRESH_SECRET as string,
+    {
+      expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '30d') as jwt.SignOptions['expiresIn'],
+    }
+  );
+
   return { accessToken, refreshToken };
 }
 
-// POST /api/auth/login
+// ── LOGIN ────────────────────────────────────────────────────
 router.post('/login', authLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = loginSchema.parse(req.body);
 
-    // ── MOCK mode: authenticate without DB ──────────────────────────────────
+    // MOCK MODE
     if (process.env.USE_MOCK_DATA === 'true') {
       const mockUser = MOCK_USERS[email.toLowerCase()];
       if (!mockUser || mockUser.passwordPlain !== password) {
         throw new AppError('Invalid email or password', 401);
       }
-      const { accessToken, refreshToken } = generateTokens(mockUser.id, mockUser.email, mockUser.role, mockUser.clientId);
+
+      const { accessToken, refreshToken } = generateTokens(
+        mockUser.id,
+        mockUser.email,
+        mockUser.role,
+        mockUser.clientId
+      );
+
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
         maxAge: 30 * 24 * 60 * 60 * 1000,
       });
+
       return res.json({
         success: true,
         data: {
           accessToken,
-          user: { id: mockUser.id, email: mockUser.email, name: mockUser.name, role: mockUser.role, clientId: mockUser.clientId, client: mockUser.client },
+          user: {
+            id: mockUser.id,
+            email: mockUser.email,
+            name: mockUser.name,
+            role: mockUser.role,
+            clientId: mockUser.clientId,
+            client: mockUser.client,
+          },
         },
       });
     }
 
-    // ── LIVE mode: authenticate against DB ─────────────────────────────────
+    // LIVE MODE
     const user = await prisma.user.findUnique({
       where: { email, isActive: true },
-      include: { client: { select: { id: true, name: true, slug: true, logoUrl: true, primaryColor: true, secondaryColor: true } } },
+      include: {
+        client: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            logoUrl: true,
+            primaryColor: true,
+            secondaryColor: true,
+          },
+        },
+      },
     });
 
     if (!user) throw new AppError('Invalid email or password', 401);
@@ -94,9 +162,17 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) throw new AppError('Invalid email or password', 401);
 
-    const { accessToken, refreshToken } = generateTokens(user.id, user.email, user.role, user.clientId);
+    const { accessToken, refreshToken } = generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      user.clientId
+    );
 
-    await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
@@ -124,28 +200,47 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
   }
 });
 
-// POST /api/auth/refresh
+// ── REFRESH ─────────────────────────────────────────────────
 router.post('/refresh', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const refreshToken = req.cookies.refreshToken;
     if (!refreshToken) throw new AppError('Refresh token required', 401);
 
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET!) as any;
+    const decoded = jwt.verify(
+      refreshToken,
+      process.env.JWT_REFRESH_SECRET as string
+    ) as any;
 
-    // Mock mode: skip DB lookup
     if (process.env.USE_MOCK_DATA === 'true') {
-      const tokens = generateTokens(decoded.userId, decoded.email, decoded.role, decoded.clientId);
+      const tokens = generateTokens(
+        decoded.userId,
+        decoded.email,
+        decoded.role,
+        decoded.clientId
+      );
+
       res.cookie('refreshToken', tokens.refreshToken, {
-        httpOnly: true, secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict', maxAge: 30 * 24 * 60 * 60 * 1000,
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
       });
+
       return res.json({ success: true, data: { accessToken: tokens.accessToken } });
     }
 
-    const user = await prisma.user.findUnique({ where: { id: decoded.userId, isActive: true } });
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId, isActive: true },
+    });
+
     if (!user) throw new AppError('User not found', 401);
 
-    const tokens = generateTokens(user.id, user.email, user.role, user.clientId);
+    const tokens = generateTokens(
+      user.id,
+      user.email,
+      user.role,
+      user.clientId
+    );
 
     res.cookie('refreshToken', tokens.refreshToken, {
       httpOnly: true,
@@ -160,29 +255,56 @@ router.post('/refresh', async (req: Request, res: Response, next: NextFunction) 
   }
 });
 
-// POST /api/auth/logout
+// ── LOGOUT ─────────────────────────────────────────────────
 router.post('/logout', authenticate, async (_req: AuthRequest, res: Response) => {
   res.clearCookie('refreshToken');
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
-// GET /api/auth/me
+// ── ME ─────────────────────────────────────────────────────
 router.get('/me', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    // Mock mode: return from mock user map
     if (process.env.USE_MOCK_DATA === 'true') {
       const mockUser = Object.values(MOCK_USERS).find(u => u.id === req.user!.id);
       if (!mockUser) throw new AppError('User not found', 401);
-      return res.json({ success: true, data: { user: { id: mockUser.id, email: mockUser.email, name: mockUser.name, role: mockUser.role, clientId: mockUser.clientId, client: mockUser.client } } });
+
+      return res.json({
+        success: true,
+        data: {
+          user: {
+            id: mockUser.id,
+            email: mockUser.email,
+            name: mockUser.name,
+            role: mockUser.role,
+            clientId: mockUser.clientId,
+            client: mockUser.client,
+          },
+        },
+      });
     }
 
     const user = await prisma.user.findUnique({
       where: { id: req.user!.id },
       select: {
-        id: true, email: true, name: true, role: true, clientId: true, lastLoginAt: true,
-        client: { select: { id: true, name: true, slug: true, logoUrl: true, primaryColor: true, secondaryColor: true } },
+        id: true,
+        email: true,
+        name: true,
+        role: true,
+        clientId: true,
+        lastLoginAt: true,
+        client: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            logoUrl: true,
+            primaryColor: true,
+            secondaryColor: true,
+          },
+        },
       },
     });
+
     res.json({ success: true, data: { user } });
   } catch (err) {
     next(err);
