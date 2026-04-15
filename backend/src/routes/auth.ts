@@ -120,7 +120,7 @@ router.post('/login', authLimiter, async (req: Request, res: Response, next: Nex
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
         maxAge: 30 * 24 * 60 * 60 * 1000,
       });
 
