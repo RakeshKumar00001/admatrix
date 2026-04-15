@@ -1,16 +1,15 @@
 import axios from 'axios';
 import { useAuthStore } from '../store/authStore';
 
-// ✅ Safe env access (fixes TypeScript error)
 const API_URL = import.meta.env.VITE_API_URL;
 
 const api = axios.create({
-  baseURL: `${API_URL}/api`, // 🔥 important
+  baseURL: `${API_URL}/api`,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
 
-// Attach token to every request
+// Attach token
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token && config.headers) {
@@ -19,7 +18,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Handle token refresh on 401
+// Handle refresh
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -30,7 +29,7 @@ api.interceptors.response.use(
 
       try {
         const { data } = await axios.post(
-          `${API_URL}/auth/refresh`,
+          `${API_URL}/api/auth/refresh`, // ✅ FIXED
           {},
           { withCredentials: true }
         );
